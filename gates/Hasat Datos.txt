@@ -1,0 +1,10 @@
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:04:51.191886"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:05:03.643219"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:05:13.475930"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:05:25.962144"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:05:32.164299"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:05:39.078480"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:05:45.251088"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:05:51.197278"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:06:00.733462"}
+{"bin": "426807", "step": "card_add", "status_code": 500, "response_body": "Ocurri\u00f3 un error al crear la tarjeta en stripe", "timestamp": "2026-05-06T13:06:14.762481"}

@@ -1,0 +1,11 @@
+# Base de datos (persiste en Railway, no en GitHub)
+data/db/*.db
+*.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Otros
+.env
+venv

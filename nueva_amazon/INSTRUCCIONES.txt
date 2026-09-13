@@ -1,0 +1,69 @@
+COMO CORRER amazonapi.py EN LOCAL (SIN TOKEN DE TELEGRAM)
+=====================================================
+
+Este script NO usa token/bot. Corre directo por CLI.
+Solo necesita: cookie.txt, cards.txt, python + curl_cffi.
+
+1. REQUISITOS
+-------------
+- Python 3.10+ instalado
+- Archivo: no/AmazonApi/amazonapi.py
+- Archivo: no/AmazonApi/cookie.txt (ya existe, con tu cookie)
+- Archivo: no/AmazonApi/cards.txt (ya existe, formato num|mm|yy|cvv)
+- Opcional: no/AmazonApi/proxy.txt (si no existe, corre sin proxy)
+
+2. INSTALAR DEPENDENCIA (solo 1 vez)
+------------------------------------
+El script solo necesita curl_cffi:
+
+  pip install curl_cffi
+
+O con venv:
+
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install curl_cffi
+
+3. PREPARAR ARCHIVOS
+--------------------
+- cookie.txt: una sola linea con la cookie completa de Amazon.
+  Debe contener el region code (main, acbmx, acbca, acbes, etc).
+- cards.txt: una tarjeta por linea, ejemplo:
+  5265570003165686|12|2029|853
+  Lineas con # se ignoran.
+- proxy.txt (opcional): una linea, ejemplo:
+  user:pass@host:port
+  Si no existe, el script sigue sin proxy.
+
+4. CORRER
+---------
+Desde la raiz del proyecto:
+
+  cd no/AmazonApi
+  python3 amazonapi.py
+
+Salida esperada (una linea JSON por tarjeta):
+  {"CC": "num|mm|yy|cvv", "ApiResp": "Approved ... / Declined ...", "T/Tkn": "12.5s"}
+
+5. TERMINAR EL PROCESO
+---------------------
+- Si corre en primer plano: Ctrl+C (una vez para parar la tarjeta actual, dos para forzar).
+- Si quedo corriendo en fondo / se trabo:
+
+  # ver si sigue vivo
+  ps aux | grep amazonapi.py
+
+  # matar por nombre (recomendado)
+  pkill -f amazonapi.py
+
+  # matar por PID
+  kill <PID>
+  kill -9 <PID>   # solo si kill normal no funciona
+
+- Si usaste venv: luego haz `deactivate`.
+
+NOTAS
+-----
+- Sin cookie valida sale: "Cookie expired".
+- Cada tarjeta tarda varios requests (R1-R13), deja 1-3s entre tarjetas en automatico.
+- No edites amazonapi.py para correrlo, ya tiene CLI integrado al final.

@@ -1,0 +1,15 @@
+python-telegram-bot
+cloudscraper
+requests
+Faker
+python-dotenv
+psycopg2-binary
+httpx
+asyncpg
+aiohttp
+python-telegram-bot==21.6
+httpx==0.27.2
+playwright==1.48.0
+python-dotenv==1.0.1
+aiofiles==24.1.0
+curl_cffi
