@@ -1,11 +1,114 @@
 # Base de datos (persiste en Railway, no en GitHub)
-data/db/*.db
+data/db/
 *.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
 
-# Python cache
+# Python cache / bytecode
 __pycache__/
+**/__pycache__/
+*.py[cod]
 *.pyc
+*.pyo
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
 
-# Otros
+# Entornos virtuales — FIX: antes solo `venv` (sin punto) dejaba .venv trackeado
+.venv/
+venv/
+ENV/
+env/
+venv.bak/
+data/txt/venv/
+
+# Secrets / env
 .env
-venv
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Datos sensibles — raiz (tarjetas/cuentas/tokens)
+cuentas.csv
+tarjetas.csv
+tokens1.txt
+tokens*.txt
+token*.txt
+Cuentas123.txt
+Cuentas*.txt
+NBD Datos.txt
+NBD*.txt
+*.csv
+!requirements.csv
+# Nota: *.csv global ignora cualquier csv nuevo; si necesitas trackear uno legitimo usa `!nombre.csv`
+
+# Datos sensibles — subcarpetas
+data/txt/*.csv
+data/txt/*.txt
+data/txt/*.log
+data/txt/*.json
+data/txt/__pycache__/
+data/txt/venv/
+!data/txt/refill.py
+gates/*.txt
+gates/*.csv
+gates/*.log
+nueva_amazon/*.txt
+nueva_amazon/*.csv
+nueva_amazon/*.log
+
+# Dumps grandes / temporales (60MB+)
+traffic_*.json
+traffic*.json
+*.dump
+*.bin
+
+# Logs y backups
+*.log
+*.bak
+*.bak_*
+*.backup
+*.old
+*.tmp
+*.temp
+
+# Vim / swap / OS
+*.swp
+*.swo
+*~
+.*.swp
+..gitignore.swp
+.DS_Store
+Thumbs.db
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Notas / sesiones locales (no subir a GitHub)
+AJUSTES_*.md
+AUDITORIA_*.md
+BROWSERLESS_*.md
+PATCH_*.md
+EXPORT_SESION*.md
+session-*.md
+session-ses_*.md
+mejoraspf.md
+
+# IDE / editor
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace

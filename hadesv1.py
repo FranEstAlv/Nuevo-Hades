@@ -240,42 +240,41 @@ def sanitize_gate_response(message):
 def init_superadmins_table():
     """Crea la tabla de superadmins si no existe"""
     try:
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        # Detectar si es PostgreSQL o SQLite
-        if key_manager.postgres_url:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS superadmins (
-                    user_id BIGINT PRIMARY KEY,
-                    added_by BIGINT,
-                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    is_creator BOOLEAN DEFAULT FALSE
-                )
-            ''')
-            # Insertar el creador principal si no existe
-            cursor.execute('''
-                INSERT INTO superadmins (user_id, added_by, is_creator)
-                VALUES (%s, %s, TRUE)
-                ON CONFLICT (user_id) DO NOTHING
-            ''', (5531198491, 5531198491))
-        else:
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS superadmins (
-                    user_id INTEGER PRIMARY KEY,
-                    added_by INTEGER,
-                    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    is_creator BOOLEAN DEFAULT 0
-                )
-            ''')
-            # Insertar el creador principal si no existe
-            cursor.execute('''
-                INSERT OR IGNORE INTO superadmins (user_id, added_by, is_creator)
-                VALUES (?, ?, 1)
-            ''', (5531198491, 5531198491))
-        
-        conn.commit()
-        conn.close()
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            # Detectar si es PostgreSQL o SQLite
+            if key_manager.postgres_url:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS superadmins (
+                        user_id BIGINT PRIMARY KEY,
+                        added_by BIGINT,
+                        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        is_creator BOOLEAN DEFAULT FALSE
+                    )
+                ''')
+                # Insertar el creador principal si no existe
+                cursor.execute('''
+                    INSERT INTO superadmins (user_id, added_by, is_creator)
+                    VALUES (%s, %s, TRUE)
+                    ON CONFLICT (user_id) DO NOTHING
+                ''', (5531198491, 5531198491))
+            else:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS superadmins (
+                        user_id INTEGER PRIMARY KEY,
+                        added_by INTEGER,
+                        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        is_creator BOOLEAN DEFAULT 0
+                    )
+                ''')
+                # Insertar el creador principal si no existe
+                cursor.execute('''
+                    INSERT OR IGNORE INTO superadmins (user_id, added_by, is_creator)
+                    VALUES (?, ?, 1)
+                ''', (5531198491, 5531198491))
+            
+            conn.commit()
         print("✅ Tabla de superadmins inicializada")
     except Exception as e:
         print(f"⚠️ Error inicializando tabla superadmins: {e}")
@@ -501,14 +500,13 @@ async def get_audit_stats():
 def load_superadmins_from_db():
     """Carga los superadmins desde la base de datos"""
     try:
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT user_id FROM superadmins")
-        superadmins = [row[0] for row in cursor.fetchall()]
-        
-        conn.close()
-        return superadmins
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT user_id FROM superadmins")
+            superadmins = [row[0] for row in cursor.fetchall()]
+            
+            return superadmins
     except Exception as e:
         print(f"⚠️ Error cargando superadmins: {e}")
         return [5531198491]  # Fallback al creador
@@ -516,26 +514,25 @@ def load_superadmins_from_db():
 def add_superadmin_to_db(user_id: int, added_by: int, is_creator: bool = False):
     """Agrega un superadmin a la base de datos"""
     try:
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        if key_manager.postgres_url:
-            cursor.execute('''
-                INSERT INTO superadmins (user_id, added_by, is_creator)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (user_id) DO UPDATE SET
-                    added_by = EXCLUDED.added_by,
-                    added_at = CURRENT_TIMESTAMP
-            ''', (user_id, added_by, is_creator))
-        else:
-            cursor.execute('''
-                INSERT OR REPLACE INTO superadmins (user_id, added_by, added_at, is_creator)
-                VALUES (?, ?, datetime('now'), ?)
-            ''', (user_id, added_by, 1 if is_creator else 0))
-        
-        conn.commit()
-        conn.close()
-        return True
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            if key_manager.postgres_url:
+                cursor.execute('''
+                    INSERT INTO superadmins (user_id, added_by, is_creator)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (user_id) DO UPDATE SET
+                        added_by = EXCLUDED.added_by,
+                        added_at = CURRENT_TIMESTAMP
+                ''', (user_id, added_by, is_creator))
+            else:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO superadmins (user_id, added_by, added_at, is_creator)
+                    VALUES (?, ?, datetime('now'), ?)
+                ''', (user_id, added_by, 1 if is_creator else 0))
+            
+            conn.commit()
+            return True
     except Exception as e:
         print(f"❌ Error agregando superadmin: {e}")
         return False
@@ -580,16 +577,15 @@ async def remove_admin_command(update: Update, context: ContextTypes.DEFAULT_TYP
             return
         
         # Si solo es admin normal, quitar de admins
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        if key_manager.postgres_url:
-            cursor.execute("DELETE FROM admins WHERE user_id = %s", (target_id,))
-        else:
-            cursor.execute("DELETE FROM admins WHERE user_id = ?", (target_id,))
-        
-        conn.commit()
-        conn.close()
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            if key_manager.postgres_url:
+                cursor.execute("DELETE FROM admins WHERE user_id = %s", (target_id,))
+            else:
+                cursor.execute("DELETE FROM admins WHERE user_id = ?", (target_id,))
+            
+            conn.commit()
         
         await update.message.reply_text(
             f"✅ Usuario `{target_id}` ha sido removido como administrador."
@@ -602,25 +598,26 @@ async def remove_admin_command(update: Update, context: ContextTypes.DEFAULT_TYP
 def remove_superadmin_from_db(user_id: int):
     """Quita un superadmin de la base de datos"""
     try:
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        # No permitir quitar al creador principal
-        cursor.execute("SELECT is_creator FROM superadmins WHERE user_id = ?", (user_id,))
-        result = cursor.fetchone()
-        
-        if result and result[0]:  # Es el creador
-            conn.close()
-            return False, "No se puede quitar al creador principal"
-        
-        if key_manager.postgres_url:
-            cursor.execute("DELETE FROM superadmins WHERE user_id = %s", (user_id,))
-        else:
-            cursor.execute("DELETE FROM superadmins WHERE user_id = ?", (user_id,))
-        
-        conn.commit()
-        conn.close()
-        return True, "Superadmin removido"
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            # No permitir quitar al creador principal
+            if key_manager.postgres_url:
+                cursor.execute("SELECT is_creator FROM superadmins WHERE user_id = %s", (user_id,))
+            else:
+                cursor.execute("SELECT is_creator FROM superadmins WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+            
+            if result and result[0]:  # Es el creador
+                return False, "No se puede quitar al creador principal"
+            
+            if key_manager.postgres_url:
+                cursor.execute("DELETE FROM superadmins WHERE user_id = %s", (user_id,))
+            else:
+                cursor.execute("DELETE FROM superadmins WHERE user_id = ?", (user_id,))
+            
+            conn.commit()
+            return True, "Superadmin removido"
     except Exception as e:
         return False, str(e)
 
@@ -636,16 +633,15 @@ def is_superadmin(user_id: int) -> bool:
     
     # Verificar en base de datos por si acaso
     try:
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        if key_manager.postgres_url:
-            cursor.execute("SELECT 1 FROM superadmins WHERE user_id = %s", (user_id,))
-        else:
-            cursor.execute("SELECT 1 FROM superadmins WHERE user_id = ?", (user_id,))
-        
-        result = cursor.fetchone()
-        conn.close()
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            if key_manager.postgres_url:
+                cursor.execute("SELECT 1 FROM superadmins WHERE user_id = %s", (user_id,))
+            else:
+                cursor.execute("SELECT 1 FROM superadmins WHERE user_id = ?", (user_id,))
+            
+            result = cursor.fetchone()
         
         if result:
             # Agregar a la lista en memoria para futuras consultas
@@ -660,22 +656,21 @@ def is_superadmin(user_id: int) -> bool:
 def is_creator(user_id: int) -> bool:
     """Verifica si el usuario es el creador principal"""
     try:
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        if key_manager.postgres_url:
-            cursor.execute(
-                "SELECT is_creator FROM superadmins WHERE user_id = %s", 
-                (user_id,)
-            )
-        else:
-            cursor.execute(
-                "SELECT is_creator FROM superadmins WHERE user_id = ?", 
-                (user_id,)
-            )
-        
-        result = cursor.fetchone()
-        conn.close()
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            if key_manager.postgres_url:
+                cursor.execute(
+                    "SELECT is_creator FROM superadmins WHERE user_id = %s", 
+                    (user_id,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT is_creator FROM superadmins WHERE user_id = ?", 
+                    (user_id,)
+                )
+            
+            result = cursor.fetchone()
         
         return result and result[0]
     except:
@@ -927,11 +922,12 @@ async def export_credits_command(update: Update, context: ContextTypes.DEFAULT_T
             f"📁 Archivo: `{filename}`"
         )
         
-        await update.message.reply_document(
-            document=open(filepath, 'rb'),
-            caption=caption,
-            parse_mode='Markdown'
-        )
+        with open(filepath, 'rb') as _doc_file:
+            await update.message.reply_document(
+                document=_doc_file,
+                caption=caption,
+                parse_mode='Markdown'
+            )
         
         # Limpiar archivo temporal
         import os
@@ -1115,11 +1111,12 @@ async def exportallcredits_command(update: Update, context: ContextTypes.DEFAULT
                     ])
         
         total = len(all_users)
-        await update.message.reply_document(
-            document=open(filename, 'rb'),
-            caption=f"📊 Exportación completa: `{total}` usuarios",
-            parse_mode='Markdown'
-        )
+        with open(filename, 'rb') as _doc_file:
+            await update.message.reply_document(
+                document=_doc_file,
+                caption=f"📊 Exportación completa: `{total}` usuarios",
+                parse_mode='Markdown'
+            )
         
         import os
         os.remove(filename)
@@ -1547,25 +1544,23 @@ async def export_data_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
         
         # Usar la conexión del KeyManager (PostgreSQL o SQLite)
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
-        # Obtener admins
-        cursor.execute("SELECT user_id FROM admins")
-        admins = [row[0] for row in cursor.fetchall()]
-        
-        # Obtener usuarios CON plan incluido
-        cursor.execute('''
-        SELECT user_id, key, plan, activated_at, expires_at 
-        FROM active_keys
-        ''')
-        users_data = cursor.fetchall()
-        
-        # Obtener superadmins
-        cursor.execute("SELECT user_id, is_creator FROM superadmins")
-        superadmins_data = cursor.fetchall()
-        
-        conn.close()
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            
+            # Obtener admins
+            cursor.execute("SELECT user_id FROM admins")
+            admins = [row[0] for row in cursor.fetchall()]
+            
+            # Obtener usuarios CON plan incluido
+            cursor.execute('''
+            SELECT user_id, key, plan, activated_at, expires_at 
+            FROM active_keys
+            ''')
+            users_data = cursor.fetchall()
+            
+            # Obtener superadmins
+            cursor.execute("SELECT user_id, is_creator FROM superadmins")
+            superadmins_data = cursor.fetchall()
         
         # Generar contenido del archivo
         content = "EXPORTACIÓN DE DATOS - HADES V1\n"
@@ -1634,9 +1629,10 @@ async def export_data_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"• {len(users_data)} usuarios"
         )
         
-        await context.bot.send_document(
-            chat_id=update.effective_chat.id,
-            document=open(filename, 'rb'),
+        with open(filename, 'rb') as _doc_file:
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=_doc_file,
             caption=f"Exportación Hades V1 - {datetime.now().strftime('%Y-%m-%d')}"
         )
         
@@ -1689,9 +1685,10 @@ async def export_users_command(update: Update, context: ContextTypes.DEFAULT_TYP
         
         # Enviar el archivo al administrador
         await update.message.reply_text(f"✅ Exportación de usuarios completada. Enviando archivo: {filename}")
-        await context.bot.send_document(
-            chat_id=update.effective_chat.id,
-            document=open(filename, 'rb'),
+        with open(filename, 'rb') as _doc_file:
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=_doc_file,
             caption=f"Exportación de usuarios de Hades V1 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         
@@ -1720,11 +1717,10 @@ async def export_admins_command(update: Update, context: ContextTypes.DEFAULT_TY
         admins = key_manager.get_admins()
         
         # Obtener superadmins
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id, is_creator FROM superadmins")
-        superadmins_data = {row[0]: row[1] for row in cursor.fetchall()}
-        conn.close()
+        with key_manager._conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT user_id, is_creator FROM superadmins")
+            superadmins_data = {row[0]: row[1] for row in cursor.fetchall()}
         
         # Crear el contenido del archivo
         content = "EXPORTACIÓN DE ADMINISTRADORES - HADES V1\n"
@@ -1753,9 +1749,10 @@ async def export_admins_command(update: Update, context: ContextTypes.DEFAULT_TY
         
         # Enviar el archivo al administrador
         await update.message.reply_text(f"✅ Exportación de administradores completada. Enviando archivo: {filename}")
-        await context.bot.send_document(
-            chat_id=update.effective_chat.id,
-            document=open(filename, 'rb'),
+        with open(filename, 'rb') as _doc_file:
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=_doc_file,
             caption=f"Exportación de administradores de Hades V1 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         
@@ -2704,11 +2701,12 @@ async def usercredits_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         caption += f"\n📁 Archivo: `{filename}`"
         
         # Enviar archivo
-        await update.message.reply_document(
-            document=open(filepath, 'rb'),
-            caption=caption,
-            parse_mode='Markdown'
-        )
+        with open(filepath, 'rb') as _doc_file:
+            await update.message.reply_document(
+                document=_doc_file,
+                caption=caption,
+                parse_mode='Markdown'
+            )
         
         # Limpiar archivo temporal
         import os
@@ -3979,10 +3977,6 @@ async def import_data_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         errors = []
         current_section = None
         
-        # Usar la conexión del KeyManager (PostgreSQL o SQLite)
-        conn = key_manager._get_conn()
-        cursor = conn.cursor()
-        
         for line in lines:
             line = line.strip()
             
@@ -4213,50 +4207,55 @@ async def restore_all_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                         
                         # Restaurar la clave
                         conn = key_manager._get_conn()
-                        cursor = conn.cursor()
-                        
-                        # Calcular la nueva fecha de expiración
-                        new_expires_at = datetime.now() + timedelta(days=days_remaining)
-                        
-                        is_postgres = key_manager.postgres_url and hasattr(key_manager, 'postgres_url')
-                        
-                        if is_postgres:
-                            cursor.execute('''
-                            INSERT INTO keys (key, plan, created_at, expires_at, days, user_id, used)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
-                            ON CONFLICT (key) DO UPDATE SET
-                                plan = EXCLUDED.plan,
-                                expires_at = EXCLUDED.expires_at,
-                                days = EXCLUDED.days,
-                                used = EXCLUDED.used
-                            ''', (key_part, plan_detectado, datetime.now(), new_expires_at, days_remaining, user_id_val, True))
+                        try:
+                            cursor = conn.cursor()
                             
-                            cursor.execute('''
-                            INSERT INTO active_keys (user_id, key, plan, activated_at, expires_at)
-                            VALUES (%s, %s, %s, %s, %s)
-                            ON CONFLICT (user_id) DO UPDATE SET
-                                key = EXCLUDED.key,
-                                plan = EXCLUDED.plan,
-                                activated_at = EXCLUDED.activated_at,
-                                expires_at = EXCLUDED.expires_at
-                            ''', (user_id_val, key_part, plan_detectado, datetime.now(), new_expires_at))
-                        else:
-                            cursor.execute('''
-                            INSERT OR REPLACE INTO keys (key, plan, created_at, expires_at, days, user_id, used)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                            ''', (key_part, plan_detectado, datetime.now().isoformat(), 
-                                  new_expires_at.isoformat(), days_remaining, user_id_val, 1))
+                            # Calcular la nueva fecha de expiración
+                            new_expires_at = datetime.now() + timedelta(days=days_remaining)
                             
-                            cursor.execute('''
-                            INSERT OR REPLACE INTO active_keys (user_id, key, plan, activated_at, expires_at)
-                            VALUES (?, ?, ?, ?, ?)
-                            ''', (user_id_val, key_part, plan_detectado, 
-                                  datetime.now().isoformat(), new_expires_at))
-                        
-                        conn.commit()
-                        conn.close()
-                        
-                        users_restored += 1
+                            is_postgres = key_manager.postgres_url and hasattr(key_manager, 'postgres_url')
+                            
+                            if is_postgres:
+                                cursor.execute('''
+                                INSERT INTO keys (key, plan, created_at, expires_at, days, user_id, used)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                ON CONFLICT (key) DO UPDATE SET
+                                    plan = EXCLUDED.plan,
+                                    expires_at = EXCLUDED.expires_at,
+                                    days = EXCLUDED.days,
+                                    used = EXCLUDED.used
+                                ''', (key_part, plan_detectado, datetime.now(), new_expires_at, days_remaining, user_id_val, True))
+                                
+                                cursor.execute('''
+                                INSERT INTO active_keys (user_id, key, plan, activated_at, expires_at)
+                                VALUES (%s, %s, %s, %s, %s)
+                                ON CONFLICT (user_id) DO UPDATE SET
+                                    key = EXCLUDED.key,
+                                    plan = EXCLUDED.plan,
+                                    activated_at = EXCLUDED.activated_at,
+                                    expires_at = EXCLUDED.expires_at
+                                ''', (user_id_val, key_part, plan_detectado, datetime.now(), new_expires_at))
+                            else:
+                                cursor.execute('''
+                                INSERT OR REPLACE INTO keys (key, plan, created_at, expires_at, days, user_id, used)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                ''', (key_part, plan_detectado, datetime.now().isoformat(), 
+                                      new_expires_at.isoformat(), days_remaining, user_id_val, 1))
+                                
+                                cursor.execute('''
+                                INSERT OR REPLACE INTO active_keys (user_id, key, plan, activated_at, expires_at)
+                                VALUES (?, ?, ?, ?, ?)
+                                ''', (user_id_val, key_part, plan_detectado, 
+                                      datetime.now().isoformat(), new_expires_at))
+                            
+                            conn.commit()
+                            
+                            users_restored += 1
+                        finally:
+                            try:
+                                conn.close()
+                            except Exception:
+                                pass
                 except ValueError:
                     errors.append(f"ID de usuario inválido: {line}")
                 except Exception as e:
@@ -6317,9 +6316,10 @@ async def corte_total_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         total, admins = await get_audit_stats()
         
         # Enviar archivo
-        await context.bot.send_document(
-            chat_id=update.effective_chat.id,
-            document=open(filepath, 'rb'),
+        with open(filepath, 'rb') as _doc_file:
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=_doc_file,
             caption=(
                 f"🔐 *CORTE TOTAL - AUDITORÍA*\n\n"
                 f"📊 Total de movimientos: `{total}`\n"

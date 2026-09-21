@@ -144,115 +144,120 @@ async def create_amazon_account(status_callback=None) -> Optional[Dict[str, Any]
         }
         
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"]
-            )
-            
-            context = await browser.new_context(
-                proxy=proxy_config,
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                viewport={"width": 1366, "height": 768},
-                locale="en-US",
-                timezone_id="America/New_York"
-            )
-            
-            # Anti-detección
-            await context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                window.chrome = {runtime: {}};
-                Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-            """)
-            
-            page = await context.new_page()
-            
-            # Bloquear recursos pesados
-            async def block_resources(route):
-                if route.request.resource_type in ("image", "media", "font"):
-                    await route.abort()
-                else:
-                    await route.continue_()
-            await page.route("**/*", block_resources)
-            
-            # URL CORRECTA de registro
-            REGISTER_URL = "https://www.amazon.com/ap/register"
-            
-            await upd("📝 Cargando página de registro...")
-            
-            for attempt in range(3):
-                try:
-                    await page.goto(REGISTER_URL, wait_until="domcontentloaded", timeout=60000)
-                    break
-                except Exception as e:
-                    if attempt == 2:
-                        raise
-                    logger.warning(f"Goto intent {attempt+1}: {e}")
-                    await asyncio.sleep(3)
-            
-            # Esperar formulario
-            await page.wait_for_selector("#ap_customer_name", timeout=30000)
-            
-            await upd("📝 Llenando formulario...")
-            await page.fill("#ap_customer_name", fullname)
-            await page.fill("#ap_email", phone.replace("+", ""))
-            await page.fill("#ap_password", password)
-            await page.fill("#ap_password_check", password)
-            
-            await upd("📤 Enviando...")
-            await page.click("#continue")
-            
-            await upd("📩 Esperando SMS...")
-            
-            code = None
-            for i in range(20):
-                c = await sms.check_sms(order_id)
-                if c:
-                    code = c
-                    await upd(f"✅ SMS: {code}")
-                    break
-                if i % 3 == 0:
-                    await upd(f"⏳ Esperando SMS... ({i*10}s)")
-                await asyncio.sleep(10)
-            
-            if not code:
-                await upd("❌ Sin SMS")
-                await sms.cancel_sms(order_id)
-                await browser.close()
-                return None
-            
-            await upd("⌨️ Verificando código...")
+            browser = None
             try:
-                await page.fill("#auth-pv-enter-code", code)
-                await page.click("#auth-verify-button")
-            except Exception:
-                # Intentar con selector alternativo
-                await page.fill('input[name="code"]', code)
-                await page.keyboard.press("Enter")
-            
-            await page.wait_for_load_state("domcontentloaded", timeout=15000)
-            await asyncio.sleep(2)
-            
-            # Verificar éxito
-            url = page.url
-            is_logged = await page.query_selector("#nav-link-accountList") is not None
-            
-            if "your-account" in url or is_logged:
-                await upd("🎉 ¡Cuenta creada!")
-                cookies = await context.cookies()
-                cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
-                await browser.close()
-                return {
-                    "phone": phone,
-                    "password": password,
-                    "fullname": fullname,
-                    "cookies": cookie_str,
-                    "order_id": order_id,
-                    "cost": result.get("cost")
-                }
-            
-            await upd("⚠️ No se verificó la cuenta")
-            await browser.close()
-            return None
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"]
+                )
+                
+                context = await browser.new_context(
+                    proxy=proxy_config,
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    viewport={"width": 1366, "height": 768},
+                    locale="en-US",
+                    timezone_id="America/New_York"
+                )
+                
+                # Anti-detección
+                await context.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    window.chrome = {runtime: {}};
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                """)
+                
+                page = await context.new_page()
+                
+                # Bloquear recursos pesados
+                async def block_resources(route):
+                    if route.request.resource_type in ("image", "media", "font"):
+                        await route.abort()
+                    else:
+                        await route.continue_()
+                await page.route("**/*", block_resources)
+                
+                # URL CORRECTA de registro
+                REGISTER_URL = "https://www.amazon.com/ap/register"
+                
+                await upd("📝 Cargando página de registro...")
+                
+                for attempt in range(3):
+                    try:
+                        await page.goto(REGISTER_URL, wait_until="domcontentloaded", timeout=60000)
+                        break
+                    except Exception as e:
+                        if attempt == 2:
+                            raise
+                        logger.warning(f"Goto intent {attempt+1}: {e}")
+                        await asyncio.sleep(3)
+                
+                # Esperar formulario
+                await page.wait_for_selector("#ap_customer_name", timeout=30000)
+                
+                await upd("📝 Llenando formulario...")
+                await page.fill("#ap_customer_name", fullname)
+                await page.fill("#ap_email", phone.replace("+", ""))
+                await page.fill("#ap_password", password)
+                await page.fill("#ap_password_check", password)
+                
+                await upd("📤 Enviando...")
+                await page.click("#continue")
+                
+                await upd("📩 Esperando SMS...")
+                
+                code = None
+                for i in range(20):
+                    c = await sms.check_sms(order_id)
+                    if c:
+                        code = c
+                        await upd(f"✅ SMS: {code}")
+                        break
+                    if i % 3 == 0:
+                        await upd(f"⏳ Esperando SMS... ({i*10}s)")
+                    await asyncio.sleep(10)
+                
+                if not code:
+                    await upd("❌ Sin SMS")
+                    await sms.cancel_sms(order_id)
+                    return None
+                
+                await upd("⌨️ Verificando código...")
+                try:
+                    await page.fill("#auth-pv-enter-code", code)
+                    await page.click("#auth-verify-button")
+                except Exception:
+                    # Intentar con selector alternativo
+                    await page.fill('input[name="code"]', code)
+                    await page.keyboard.press("Enter")
+                
+                await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                await asyncio.sleep(2)
+                
+                # Verificar éxito
+                url = page.url
+                is_logged = await page.query_selector("#nav-link-accountList") is not None
+                
+                if "your-account" in url or is_logged:
+                    await upd("🎉 ¡Cuenta creada!")
+                    cookies = await context.cookies()
+                    cookie_str = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
+                    return {
+                        "phone": phone,
+                        "password": password,
+                        "fullname": fullname,
+                        "cookies": cookie_str,
+                        "order_id": order_id,
+                        "cost": result.get("cost")
+                    }
+                
+                await upd("⚠️ No se verificó la cuenta")
+                return None
+            finally:
+                if browser is not None:
+                    try:
+                        await browser.close()
+                    except Exception:
+                        pass
             
     except ImportError:
         await upd("❌ Playwright no instalado. Ejecuta: playwright install chromium")
